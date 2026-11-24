@@ -1,0 +1,523 @@
+{
+  "info": {
+    "name": "UniFECAF Flix",
+    "description": "Testes locais de listagem, detalhe e filtro do catálogo. Inicie a API com o MySQL carregado e ajuste baseUrl se usar outra porta. Execute a coleção em ordem para selecionar exemplos reais do catálogo. A primeira requisição preenche os valores usados pelas seguintes.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test('Resposta em JSON', function () {",
+          "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+          "});"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:3000",
+      "type": "string"
+    },
+    {
+      "key": "filmeId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "nomeEsperado",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "nomeParcial",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "filmeSinopseId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "termoSinopse",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "idAusente",
+      "value": "2147483647",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 Listar filmes",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "function normalizar(texto) {",
+              "  return String(texto || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();",
+              "}",
+              "",
+              "const filmes = pm.response.json().filmes;",
+              "",
+              "pm.test('Catálogo retorna filmes com ID, nome e sinopse', function () {",
+              "  pm.expect(filmes).to.be.an('array').and.not.empty;",
+              "  filmes.forEach(function (filme) {",
+              "    pm.expect(filme.id).to.be.a('number').and.above(0);",
+              "    pm.expect(Number.isInteger(filme.id)).to.be.true;",
+              "    pm.expect(filme.nome).to.be.a('string').and.not.empty;",
+              "    pm.expect(filme).to.have.property('sinopse');",
+              "  });",
+              "  pm.expect(new Set(filmes.map(function (filme) { return filme.id; })).size).to.equal(filmes.length);",
+              "});",
+              "",
+              "if (Array.isArray(filmes) && filmes.length) {",
+              "  const titulos = filmes.map(function (filme) { return normalizar(filme.nome); });",
+              "  const exemploNome = filmes.find(function (filme) {",
+              "    return typeof filme.nome === 'string' && filme.nome.trim().length >= 3;",
+              "  });",
+              "  if (exemploNome) {",
+              "    pm.collectionVariables.set('filmeId', String(exemploNome.id));",
+              "    pm.collectionVariables.set('nomeEsperado', exemploNome.nome);",
+              "    const palavra = (exemploNome.nome.match(/[\\p{L}\\p{N}]{3,}/gu) || [exemploNome.nome])[0];",
+              "    const trecho = palavra.length >= 4 ? palavra.slice(0, -1) : palavra;",
+              "    pm.collectionVariables.set('nomeParcial', trecho);",
+              "  }",
+              "",
+              "  let exemploSinopse;",
+              "  for (const filme of filmes) {",
+              "    const palavras = String(filme.sinopse || '').match(/[\\p{L}]{4,}/gu) || [];",
+              "    const palavra = palavras.find(function (termo) {",
+              "      return titulos.every(function (titulo) { return !titulo.includes(normalizar(termo)); });",
+              "    });",
+              "    if (palavra) {",
+              "      exemploSinopse = { id: filme.id, palavra: palavra };",
+              "      break;",
+              "    }",
+              "  }",
+              "  pm.test('Catálogo oferece um termo exclusivo de sinopse para a verificação', function () {",
+              "    pm.expect(exemploSinopse).to.exist;",
+              "  });",
+              "  if (exemploSinopse) {",
+              "    pm.collectionVariables.set('filmeSinopseId', String(exemploSinopse.id));",
+              "    pm.collectionVariables.set('termoSinopse', exemploSinopse.palavra);",
+              "  }",
+              "",
+              "  const ids = new Set(filmes.map(function (filme) { return filme.id; }));",
+              "  let idAusente = 1;",
+              "  while (ids.has(idAusente)) {",
+              "    idAusente++;",
+              "  }",
+              "  pm.collectionVariables.set('idAusente', String(idAusente));",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/v1/controle-filmes/filme",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "v1",
+            "controle-filmes",
+            "filme"
+          ]
+        },
+        "description": "Valida os filmes cadastrados e seleciona exemplos do próprio catálogo."
+      },
+      "response": []
+    },
+    {
+      "name": "02 Consultar filme por ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Filme corresponde ao ID consultado', function () {",
+              "  const filme = pm.response.json().filme;",
+              "  pm.expect(filme).to.be.an('object');",
+              "  pm.expect(filme.id).to.equal(Number(pm.variables.get('filmeId')));",
+              "  pm.expect(filme.nome).to.be.a('string').and.not.empty;",
+              "  pm.expect(filme).to.have.property('sinopse');",
+              "  const nomeEsperado = pm.variables.get('nomeEsperado');",
+              "  if (nomeEsperado) {",
+              "    pm.expect(filme.nome).to.equal(nomeEsperado);",
+              "  }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/v1/controle-filmes/filme/{{filmeId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "v1",
+            "controle-filmes",
+            "filme",
+            "{{filmeId}}"
+          ]
+        },
+        "description": "Compara o ID e o nome do detalhe com o filme da listagem."
+      },
+      "response": []
+    },
+    {
+      "name": "03 Filtrar por trecho do nome",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "function normalizar(texto) {",
+              "  return String(texto || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();",
+              "}",
+              "",
+              "pm.test('O trecho do nome encontra o filme do catálogo', function () {",
+              "  const filmes = pm.response.json().filmes;",
+              "  const termo = normalizar(pm.variables.get('nomeParcial'));",
+              "  pm.expect(filmes).to.be.an('array').and.not.empty;",
+              "  const filmeEsperado = filmes.find(function (filme) {",
+              "    return String(filme.id) === pm.variables.get('filmeId');",
+              "  });",
+              "  pm.expect(filmeEsperado).to.exist;",
+              "  pm.expect(normalizar(filmeEsperado.nome)).to.include(termo);",
+              "  filmes.forEach(function (filme) {",
+              "    pm.expect(normalizar(filme.nome).includes(termo) ||",
+              "      normalizar(filme.sinopse).includes(termo)).to.be.true;",
+              "  });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/v1/controle-filmes/filtro/filme?nome={{nomeParcial}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "v1",
+            "controle-filmes",
+            "filtro",
+            "filme"
+          ],
+          "query": [
+            {
+              "key": "nome",
+              "value": "{{nomeParcial}}"
+            }
+          ]
+        },
+        "description": "Procura por parte do nome selecionado na listagem."
+      },
+      "response": []
+    },
+    {
+      "name": "04 Filtrar por termo da sinopse",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "function normalizar(texto) {",
+              "  return String(texto || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();",
+              "}",
+              "",
+              "pm.test('O termo encontra o filme pela sinopse', function () {",
+              "  const filmes = pm.response.json().filmes;",
+              "  const termo = normalizar(pm.variables.get('termoSinopse'));",
+              "  pm.expect(filmes).to.be.an('array').and.not.empty;",
+              "  const filmeEsperado = filmes.find(function (filme) {",
+              "    return String(filme.id) === pm.variables.get('filmeSinopseId');",
+              "  });",
+              "  pm.expect(filmeEsperado).to.exist;",
+              "  pm.expect(normalizar(filmeEsperado.sinopse)).to.include(termo);",
+              "  pm.expect(normalizar(filmeEsperado.nome)).not.to.include(termo);",
+              "  filmes.forEach(function (filme) {",
+              "    pm.expect(normalizar(filme.sinopse)).to.include(termo);",
+              "  });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/v1/controle-filmes/filtro/filme?nome={{termoSinopse}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "v1",
+            "controle-filmes",
+            "filtro",
+            "filme"
+          ],
+          "query": [
+            {
+              "key": "nome",
+              "value": "{{termoSinopse}}"
+            }
+          ]
+        },
+        "description": "Procura uma palavra encontrada na sinopse e ausente dos nomes listados."
+      },
+      "response": []
+    },
+    {
+      "name": "05 Rejeitar ID inválido",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', function () {",
+              "  pm.response.to.have.status(400);",
+              "});",
+              "",
+              "pm.test('Erro JSON contém código e mensagem', function () {",
+              "  const erro = pm.response.json().erro;",
+              "  pm.expect(erro).to.be.an('object');",
+              "  pm.expect(erro.codigo).to.be.a('string').and.not.empty;",
+              "  pm.expect(erro.mensagem).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/v1/controle-filmes/filme/abc",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "v1",
+            "controle-filmes",
+            "filme",
+            "abc"
+          ]
+        },
+        "description": "Verifica a rejeição de um ID que não representa um inteiro."
+      },
+      "response": []
+    },
+    {
+      "name": "06 Consultar ID inexistente",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 404', function () {",
+              "  pm.response.to.have.status(404);",
+              "});",
+              "",
+              "pm.test('Erro JSON contém código e mensagem', function () {",
+              "  const erro = pm.response.json().erro;",
+              "  pm.expect(erro).to.be.an('object');",
+              "  pm.expect(erro.codigo).to.be.a('string').and.not.empty;",
+              "  pm.expect(erro.mensagem).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/v1/controle-filmes/filme/{{idAusente}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "v1",
+            "controle-filmes",
+            "filme",
+            "{{idAusente}}"
+          ]
+        },
+        "description": "Consulta um inteiro positivo ausente da listagem."
+      },
+      "response": []
+    },
+    {
+      "name": "07 Rejeitar filtro em branco",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', function () {",
+              "  pm.response.to.have.status(400);",
+              "});",
+              "",
+              "pm.test('Erro JSON contém código e mensagem', function () {",
+              "  const erro = pm.response.json().erro;",
+              "  pm.expect(erro).to.be.an('object');",
+              "  pm.expect(erro.codigo).to.be.a('string').and.not.empty;",
+              "  pm.expect(erro.mensagem).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/v1/controle-filmes/filtro/filme?nome=%20%20%20",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "v1",
+            "controle-filmes",
+            "filtro",
+            "filme"
+          ],
+          "query": [
+            {
+              "key": "nome",
+              "value": "%20%20%20"
+            }
+          ]
+        },
+        "description": "Verifica a rejeição de um nome composto por três espaços."
+      },
+      "response": []
+    },
+    {
+      "name": "08 Filtrar sem correspondência",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Uma consulta sem correspondência devolve uma lista vazia', function () {",
+              "  pm.expect(pm.response.json().filmes).to.be.an('array').that.is.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/v1/controle-filmes/filtro/filme?nome=zzzinexistenteflix999",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "v1",
+            "controle-filmes",
+            "filtro",
+            "filme"
+          ],
+          "query": [
+            {
+              "key": "nome",
+              "value": "zzzinexistenteflix999"
+            }
+          ]
+        },
+        "description": "Verifica o resultado de uma consulta sem filmes correspondentes."
+      },
+      "response": []
+    }
+  ]
+}

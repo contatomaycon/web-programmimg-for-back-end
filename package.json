@@ -1,0 +1,17 @@
+{
+  "name": "unifecaf-flix",
+  "version": "1.0.0",
+  "private": true,
+  "description": "API de consulta ao catálogo de filmes da UniFECAF Flix",
+  "type": "module",
+  "engines": {
+    "node": ">=22.21.0"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/server.js"
+  },
+  "dependencies": {
+    "express": "5.3.0",
+    "mysql2": "3.24.6"
+  }
+}
