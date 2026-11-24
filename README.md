@@ -4,7 +4,7 @@ API de consulta a um catálogo de filmes em MySQL. A mesma rota de filtro procur
 
 ## Executar localmente
 
-Pré-requisitos: Node.js 22.21.0 ou superior, npm e um servidor MySQL 8.x.
+Pré-requisitos: Node.js 22.21.0 ou superior, npm e um servidor MySQL 8.0.19 ou superior. A demonstração foi validada no MySQL 8.4.13.
 
 1. Importe o catálogo de demonstração em uma instância de desenvolvimento. O script cria o banco `unifecaf_flix` e carrega filmes fictícios para demonstrar a persistência.
 
@@ -38,7 +38,7 @@ Use a base `http://127.0.0.1:3000/v1/controle-filmes`.
 | Método e caminho | Parâmetro | Resposta de sucesso |
 | --- | --- | --- |
 | `GET /filme` | Nenhum | `200` com `{"filmes":[...]}`, em ordem de ID |
-| `GET /filme/:id` | ID inteiro positivo em formato decimal | `200` com `{"filme":{...}}` |
+| `GET /filme/:id` | ID inteiro positivo seguro em JavaScript, em decimal sem zeros à esquerda | `200` com `{"filme":{...}}` |
 | `GET /filtro/filme?nome=xxx` | Termo único de 1 a 120 caracteres, após remover espaços nas pontas | `200` com `{"filmes":[...]}`, em ordem de ID |
 
 Cada filme contém `id`, `nome` e `sinopse`. O filtro compara trechos de ambos os campos sem distinção de maiúsculas ou acentos. Envie o termo pela aba **Params** do Postman para que o cliente codifique os caracteres na URL. Consultas sem correspondência retornam uma lista vazia.
